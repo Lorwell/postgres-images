@@ -1,5 +1,5 @@
 # pg 版本
-ARG PG_MAJOR=18
+ARG PG_MAJOR=17
 ARG DEBIAN_CODENAME=bookworm
 FROM postgres:$PG_MAJOR-$DEBIAN_CODENAME AS base
 
@@ -48,28 +48,29 @@ RUN apt-get update && \
 
 # Apache AGE (图数据库扩展)
 FROM base AS apache_age
-ARG PG_MAJOR=18
-ARG AGE_VERSION=PG${PG_MAJOR}
+ARG PG_MAJOR=17
+ARG AGE_VERSION="PG${PG_MAJOR}/v1.6.0-rc0"
 
-RUN apt-get update && \
-		apt-mark hold locales && \
-		apt-get install -y --no-install-recommends build-essential git cmake postgresql-server-dev-$PG_MAJOR libreadline-dev && \
-		git clone --branch ${AGE_VERSION} --single-branch --depth 1 https://github.com/apache/age.git /tmp/age && \
-		cd /tmp/age && \
-		mkdir build && cd build && \
-		cmake .. && \
-		make install && \
-		mkdir -p /usr/share/doc/apache-age && \
-		cp LICENSE README.md /usr/share/doc/apache-age && \
-		rm -rf /tmp/age && \
-		apt-get remove -y build-essential git cmake postgresql-server-dev-$PG_MAJOR libreadline-dev && \
-		apt-get autoremove -y && \
-		apt-mark unhold locales && \
-		rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --no-install-suggests \
+       bison \
+       build-essential \
+       flex \
+       postgresql-server-dev-${PG_MAJOR}
+
+ADD https://github.com/apache/age.git#${AGE_VERSION} /age
+
+WORKDIR /age
+
+RUN make && make install
 
 # 最终镜像，合并所有扩展
 FROM base
-ARG PG_MAJOR
+ARG PG_MAJOR=17
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --no-install-suggests \
+    locales
 
 # 安装中文环境
 RUN localedef -i zh_CN -c -f UTF-8 -A /usr/share/locale/locale.alias zh_CN.UTF-8
@@ -90,3 +91,8 @@ COPY --from=pgvertor /usr/share/postgresql/${PG_MAJOR}/extension/vector* /usr/sh
 COPY --from=apache_age /usr/lib/postgresql/${PG_MAJOR}/lib/age.so /usr/lib/postgresql/${PG_MAJOR}/lib/
 COPY --from=apache_age /usr/lib/postgresql/${PG_MAJOR}/lib/bitcode/age* /usr/lib/postgresql/${PG_MAJOR}/lib/bitcode/
 COPY --from=apache_age /usr/share/postgresql/${PG_MAJOR}/extension/age* /usr/share/postgresql/${PG_MAJOR}/extension/
+
+# 启用拓展
+COPY 00-create-extension-vector.sql /docker-entrypoint-initdb.d/00-create-extension-vector.sql
+COPY 01-create-extension-zhparser.sql /docker-entrypoint-initdb.d/01-create-extension-zhparser.sql
+COPY 02-create-extension-age.sql /docker-entrypoint-initdb.d/02-create-extension-age.sql

@@ -17,14 +17,14 @@ on:
       pg_major:
         description: 'PostgreSQL major version'
         required: false
-        default: '18'
+        default: '17'
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pg_major: [14, 15, 16, 17, 18]
+        pg_major: [14, 15, 16, 17]
 
     steps:
       - name: Checkout code

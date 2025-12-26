@@ -56,3 +56,7 @@ COPY --from=zhparser /usr/local/lib/libscws.* /usr/local/lib/
 COPY --from=zhparser /usr/share/postgresql/${PG_MAJOR}/extension/zhparser* /usr/share/postgresql/${PG_MAJOR}/extension/
 COPY --from=zhparser /usr/lib/postgresql/${PG_MAJOR}/lib/bitcode/zhparser* /usr/lib/postgresql/${PG_MAJOR}/lib/bitcode/
 COPY --from=zhparser /usr/share/postgresql/${PG_MAJOR}/tsearch_data/*.utf8.* /usr/share/postgresql/${PG_MAJOR}/tsearch_data/
+
+# 启用拓展
+COPY 00-create-extension-vector.sql /docker-entrypoint-initdb.d/00-create-extension-vector.sql
+COPY 01-create-extension-zhparser.sql /docker-entrypoint-initdb.d/01-create-extension-zhparser.sql
